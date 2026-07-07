@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RehearsalMix & Charts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0a0f;
+    color: #e8e8e8;
+    min-height: 100vh;
+  }
+  .app-wrapper { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+  /* Header */
+  .app-header { text-align: center; padding: 24px 0 32px; }
+  .app-header h1 { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .app-header p { color: #888; font-size: 15px; }
+
+  /* Drive Status */
+  .drive-status {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 18px; border-radius: 8px; background: #14141f;
+    margin-bottom: 24px; font-size: 13px; color: #888;
+    cursor: pointer; border: 1px solid #2a2a3a; transition: all 0.2s;
+  }
+  .drive-status:hover { background: #1a1a2e; border-color: #444; }
+  .drive-status.connected { color: #00d9a3; border-color: #00d9a3; }
+  .drive-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+  .drive-status.connected .dot { background: #00d9a3; box-shadow: 0 0 6px #00d9a3; }
+
+  /* Nav Tabs */
+  .nav-tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+  .nav-tab {
+    padding: 10px 24px; border-radius: 8px; border: 1px solid #2a2a3a;
+    background: #14141f; color: #888; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .nav-tab:hover { border-color: #555; color: #ccc; }
+  .nav-tab.active { background: #fff; color: #0a0a0f; border-color: #fff; }
+
+  /* Sections */
+  .section-container { display: none; }
+  .section-container.active { display: block; animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Library */
+  .library-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .library-header h2 { font-size: 20px; font-weight: 600; color: #fff; }
+  .search-box {
+    padding: 10px 16px; border-radius: 10px; border: 1px solid #2a2a3a;
+    background: #14141f; color: #fff; font-size: 14px; width: 260px; outline: none;
+  }
+  .search-box:focus { border-color: #555; }
+  .search-box::placeholder { color: #555; }
+
+  .songs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .song-card {
+    border: 1px solid #2a2a3a; border-radius: 12px; background: #14141f;
+    padding: 20px; cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .song-card:hover { border-color: #555; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .song-title { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .song-artist { font-size: 13px; color: #666; }
+  .song-badges { display: flex; gap: 6px; margin-top: 8px; }
+  .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+  .badge-key { background: rgba(233,69,96,0.15); color: #e94560; }
+  .badge-bpm { background: rgba(0,217,163,0.15); color: #00d9a3; }
+  .song-meta { display: flex; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #2a2a3a; font-size: 12px; color: #555; }
+  .song-meta span { color: #888; font-weight: 500; }
+  .song-actions { position: absolute; top: 16px; right: 16px; opacity: 0; transition: opacity 0.2s; display: flex; gap: 6px; }
+  .song-card:hover .song-actions { opacity: 1; }
+  .song-action-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #2a2a3a;
+    background: #1a1a2e; color: #888; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; font-size: 13px;
+  }
+  .song-action-btn:hover { border-color: #e94560; color: #e94560; }
+
+  /* Song Detail */
+  .song-detail { display: none; }
+  .song-detail.active { display: block; }
+  .detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .back-btn {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid #2a2a3a;
+    background: #14141f; color: #888; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .back-btn:hover { border-color: #555; color: #fff; }
+  .detail-title { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .detail-meta { display: flex; gap: 12px; font-size: 14px; color: #666; }
+
+  /* Key Bar */
+  .key-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 20px; background: #14141f; border: 1px solid #2a2a3a;
+    border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .key-bar-label { font-size: 14px; font-weight: 500; color: #888; white-space: nowrap; }
+  .key-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  .key-btn {
+    padding: 8px 14px; border-radius: 6px; border: 1px solid #2a2a3a;
+    background: #1a1a2e; color: #888; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .key-btn:hover { border-color: #555; color: #fff; }
+  .key-btn.active { background: #fff; color: #0a0a0f; border-color: #fff; }
+
+  /* Master Bar */
+  .master-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 16px 20px; background: #14141f; border: 1px solid #2a2a3a;
+    border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .master-play-btn {
+    padding: 10px 24px; border-radius: 8px; border: none;
+    background: #fff; color: #0a0a0f; font-size: 14px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+  }
+  .master-play-btn:hover { opacity: 0.9; }
+  .master-info { display: flex; gap: 24px; }
+  .master-info-item { text-align: center; }
+  .master-info-item .label { font-size: 11px; color: #555; text-transform: lowercase; margin-bottom: 2px; }
+  .master-info-item .value { font-size: 18px; font-weight: 600; color: #fff; }
+
+  /* Track Cards */
+  .tracks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .track-card { border: 1px solid #2a2a3a; border-radius: 10px; background: #14141f; overflow: hidden; }
+  .track-card-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2a2a3a; }
+  .track-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: #1a1a2e; border: 1px solid #2a2a3a; }
+  .track-info h4 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .track-info p { font-size: 12px; color: #555; }
+  .track-card-body { padding: 14px 16px; }
+
+  .upload-zone {
+    border: 1.5px dashed #2a2a3a; border-radius: 8px; padding: 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+    background: #1a1a2e; margin-bottom: 12px;
+  }
+  .upload-zone:hover { border-color: #555; background: #222236; }
+  .upload-zone.dragover { border-color: #e94560; background: rgba(233,69,96,0.05); }
+  .upload-zone-text { font-size: 13px; color: #666; }
+  .upload-zone-text span { color: #fff; font-weight: 500; }
+  .file-input { display: none; }
+
+  .track-list { display: flex; flex-direction: column; gap: 6px; }
+  .track-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: #1a1a2e; border-radius: 6px; border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  .track-row:hover { border-color: #2a2a3a; }
+  .track-row.playing { border-color: #00d9a3; background: rgba(0,217,163,0.05); }
+  .track-row-play {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: #fff; color: #0a0a0f; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+  }
+  .track-row-name { flex: 1; font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-row-key { padding: 2px 8px; border-radius: 4px; background: #0a0a0f; color: #e94560; font-size: 11px; font-weight: 600; border: 1px solid #2a2a3a; }
+  .track-row-del { width: 24px; height: 24px; border-radius: 4px; border: none; background: transparent; color: #555; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: 0; transition: opacity 0.2s; }
+  .track-row:hover .track-row-del { opacity: 1; }
+  .track-row-del:hover { color: #e94560; }
+  .track-vol { display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 0 4px; }
+  .track-vol input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; border-radius: 2px; background: #2a2a3a; outline: none; }
+  .track-vol input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; cursor: pointer; }
+  .track-vol-label { font-size: 11px; color: #555; min-width: 32px; text-align: right; }
+
+  /* Charts */
+  .charts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+  .chart-card { border: 1px solid #2a2a3a; border-radius: 10px; background: #14141f; overflow: hidden; }
+  .chart-header { padding: 14px 16px; background: #1a1a2e; border-bottom: 1px solid #2a2a3a; display: flex; justify-content: space-between; align-items: center; }
+  .chart-header h4 { font-size: 14px; font-weight: 600; }
+  .chart-key-tag { padding: 3px 10px; border-radius: 4px; background: #fff; color: #0a0a0f; font-size: 12px; font-weight: 600; }
+  .chart-body { padding: 16px; }
+  .chart-content { background: #1a1a2e; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.7; color: #888; border: 1px solid #2a2a3a; white-space: pre-wrap; min-height: 160px; }
+  .chart-content .chord-tag { color: #e94560; font-weight: 600; }
+  .chart-content .section-tag { color: #fff; font-weight: 600; }
+  .chart-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .chart-action-btn { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #2a2a3a; background: #1a1a2e; color: #888; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .chart-action-btn:hover { border-color: #555; color: #fff; background: #222236; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal-overlay.active { display: flex; }
+  .modal-box { background: #14141f; border-radius: 12px; padding: 24px; max-width: 480px; width: 90%; border: 1px solid #2a2a3a; box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: modalIn 0.25s ease-out; }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .modal-box h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #fff; }
+  .modal-input, .modal-select, .modal-textarea { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #2a2a3a; background: #1a1a2e; color: #fff; font-size: 14px; margin-bottom: 12px; outline: none; }
+  .modal-input:focus, .modal-select:focus, .modal-textarea:focus { border-color: #555; }
+  .modal-textarea { min-height: 140px; resize: vertical; font-family: 'Courier New', monospace; line-height: 1.5; }
+  .modal-row { display: flex; gap: 12px; }
+  .modal-row .modal-input, .modal-row .modal-select { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+  .modal-btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; }
+  .modal-btn:hover { opacity: 0.85; }
+  .modal-btn.cancel { background: #1a1a2e; color: #888; border: 1px solid #2a2a3a; }
+  .modal-btn.confirm { background: #fff; color: #0a0a0f; }
+
+  /* FAB */
+  .fab { position: fixed; bottom: 24px; right: 24px; width: 52px; height: 52px; border-radius: 50%; border: none; background: #fff; color: #0a0a0f; font-size: 24px; font-weight: 300; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3); transition: all 0.2s; z-index: 99; display: flex; align-items: center; justify-content: center; }
+  .fab:hover { transform: scale(1.08); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a2e; color: #fff; padding: 12px 24px; border-radius: 10px; border: 1px solid #2a2a3a; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 1001; opacity: 0; transition: all 0.3s; font-size: 14px; font-weight: 500; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: #00d9a3; }
+  .toast.error { border-color: #e94560; }
+
+  /* Empty State */
+  .empty-state { text-align: center; padding: 48px 20px; color: #555; }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state h3 { font-size: 16px; font-weight: 600; color: #888; margin-bottom: 4px; }
+  .empty-state p { font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .songs-grid, .tracks-grid, .charts-grid { grid-template-columns: 1fr; }
+    .library-header { flex-direction: column; align-items: stretch; }
+    .search-box { width: 100%; }
+    .master-bar { flex-direction: column; align-items: stretch; }
+    .master-info { justify-content: center; }
+    .key-bar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+<div class="app-wrapper">
+  <header class="app-header">
+    <h1>RehearsalMix & Charts</h1>
+    <p>Biblioteca de canciones con pistas por instrumento y cifrados</p>
+  </header>
+
+  <div class="drive-status" id="driveStatus" onclick="toggleDriveConnection()">
+    <span class="dot"></span>
+    <span id="driveStatusText">Conectar con Google Drive</span>
+  </div>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('library')" id="tab-library">Biblioteca</button>
+    <button class="nav-tab" onclick="switchTab('rehearsal')" id="tab-rehearsal">RehearsalMix</button>
+    <button class="nav-tab" onclick="switchTab('charts')" id="tab-charts">Charts</button>
+  </nav>
+
+  <!-- LIBRARY -->
+  <div id="section-library" class="section-container active">
+    <div class="library-header">
+      <h2>Mis Canciones</h2>
+      <input type="text" class="search-box" id="searchBox" placeholder="Buscar canción..." oninput="filterSongs()">
+    </div>
+    <div class="songs-grid" id="songsGrid"></div>
+    <div class="empty-state" id="libraryEmpty" style="display:none;">
+      <div class="empty-state-icon">🎵</div>
+      <h3>No hay canciones aún</h3>
+      <p>Haz clic en + para agregar tu primera canción</p>
+    </div>
+  </div>
+
+  <!-- REHEARSAL -->
+  <div id="section-rehearsal" class="section-container">
+    <div class="song-detail" id="songDetailRehearsal">
+      <div class="detail-header">
+        <button class="back-btn" onclick="backToLibrary()">← Volver</button>
+        <div>
+          <div class="detail-title" id="detailTitle">Canción</div>
+          <div class="detail-meta">
+            Original: <span class="badge badge-key" id="detailOriginalKey">C</span>
+            BPM: <span class="badge badge-bpm" id="detailBPM">120</span>
+          </div>
+        </div>
+      </div>
+      <div class="key-bar">
+        <span class="key-bar-label">Tonalidad de ensayo:</span>
+        <div class="key-buttons" id="rehearsalKeySelector"></div>
+      </div>
+      <div class="master-bar">
+        <button class="master-play-btn" onclick="toggleMasterPlay()" id="masterPlayBtn">
+          <span id="masterPlayIcon">▶</span> <span id="masterPlayText">Reproducir todo</span>
+        </button>
+        <div class="master-info">
+          <div class="master-info-item"><div class="label">tonalidad</div><div class="value" id="currentKeyDisplay">C</div></div>
+          <div class="master-info-item"><div class="label">pistas</div><div class="value" id="activeTracksCount">0</div></div>
+        </div>
+      </div>
+      <div class="tracks-grid" id="tracksGrid"></div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div id="section-charts" class="section-container">
+    <div class="song-detail" id="songDetailCharts">
+      <div class="detail-header">
+        <button class="back-btn" onclick="backToLibrary()">← Volver</button>
+        <div>
+          <div class="detail-title" id="chartDetailTitle">Canción</div>
+          <div class="detail-meta">
+            Original: <span class="badge badge-key" id="chartDetailOriginalKey">C</span>
+            BPM: <span class="badge badge-bpm" id="chartDetailBPM">120</span>
+          </div>
+        </div>
+      </div>
+      <div class="key-bar">
+        <span class="key-bar-label">Tonalidad del cifrado:</span>
+        <div class="key-buttons" id="chartKeySelector"></div>
+      </div>
+      <div class="charts-grid" id="chartsGrid"></div>
+      <div class="empty-state" id="chartsEmptyState" style="display:none;">
+        <div class="empty-state-icon">📊</div>
+        <h3>No hay cifrados en esta tonalidad</h3>
+        <p>Haz clic en + para agregar un cifrado</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fabBtn" onclick="handleFabClick()">+</button>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3 id="modalTitle">Nueva canción</h3>
+    <input type="text" class="modal-input" id="modalSongTitle" placeholder="Título de la canción">
+    <input type="text" class="modal-input" id="modalSongArtist" placeholder="Artista / Autor">
+    <div class="modal-row">
+      <select class="modal-select" id="modalOriginalKey">
+        <option value="">Tonalidad original</option>
+        <option value="C">C</option><option value="C#">C#</option><option value="D">D</option>
+        <option value="D#">D#</option><option value="E">E</option><option value="F">F</option>
+        <option value="F#">F#</option><option value="G">G</option><option value="G#">G#</option>
+        <option value="A">A</option><option value="A#">A#</option><option value="B">B</option>
+      </select>
+      <input type="number" class="modal-input" id="modalBPM" placeholder="BPM" min="40" max="300">
+    </div>
+    <textarea class="modal-textarea" id="modalChartContent" placeholder="Contenido del cifrado..." style="display:none;"></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancelar</button>
+      <button class="modal-btn confirm" onclick="confirmAdd()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== CONFIGURACIÓN GOOGLE DRIVE ==========
+// REEMPLAZA ESTOS VALORES CON LOS TUYOS DE GOOGLE CLOUD CONSOLE
+const CLIENT_ID = 'TU_CLIENT_ID.apps.googleusercontent.com';
+const API_KEY = 'TU_API_KEY'; // Opcional
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+// ========== ESTADO ==========
+const ALL_KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const CATEGORIES = [
+  {id:'original', name:'Canción original', icon:'🎵', desc:'Pista maestra completa'},
+  {id:'percussion', name:'Percusiones', icon:'🥁', desc:'Batería, congas, timbales'},
+  {id:'bass', name:'Bajos', icon:'🎸', desc:'Eléctrico, acústico, synth'},
+  {id:'guitars', name:'Guitarras', icon:'🎸', desc:'Eléctricas, acústicas'},
+  {id:'keyboards', name:'Teclados', icon:'🎹', desc:'Piano, synth, órgano'},
+  {id:'vocals', name:'Voces', icon:'🎤', desc:'Principal, coros, backing'},
+  {id:'winds', name:'Vientos', icon:'🎺', desc:'Sax, trompeta, flauta'},
+  {id:'aux', name:'Aux / Adicionales', icon:'✨', desc:'Efectos, loops, extras'}
+];
+
+let songs = [];
+let currentSongId = null;
+let currentKey = 'C';
+let currentChartKey = 'C';
+let activeTab = 'library';
+let isPlaying = false;
+let audioElements = {};
+let driveConnected = false;
+let modalMode = 'song';
+let gapiLoaded = false;
+
+// ========== INICIALIZACIÓN ==========
+function init() {
+  renderKeySelectors();
+  loadSongsFromStorage();
+  renderSongs();
+  updateFab();
+  loadGoogleAPI();
+}
+
+function renderKeySelectors() {
+  const mk = (id, handler) => {
+    document.getElementById(id).innerHTML = ALL_KEYS.map(k =>
+      `<button class="key-btn" data-key="${k}" onclick="${handler}('${k}')">${k}</button>`
+    ).join('');
+  };
+  mk('rehearsalKeySelector', 'changeKey');
+  mk('chartKeySelector', 'changeChartKey');
+}
+
+// ========== LOCAL STORAGE (mientras no hay Drive) ==========
+function loadSongsFromStorage() {
+  const saved = localStorage.getItem('rehearsalmix_songs');
+  if (saved) {
+    songs = JSON.parse(saved);
+    songs.forEach(s => {
+      if (!s.tracks) { s.tracks = {}; CATEGORIES.forEach(c => s.tracks[c.id] = []); }
+      if (!s.charts) s.charts = [];
+    });
+  }
+}
+
+function saveSongsToStorage() {
+  // Solo guarda metadatos, no archivos de audio (son URLs blob)
+  const toSave = songs.map(s => ({
+    id: s.id, title: s.title, artist: s.artist,
+    originalKey: s.originalKey, bpm: s.bpm,
+    charts: s.charts,
+    trackNames: {} // Solo nombres, no los archivos
+  }));
+  CATEGORIES.forEach(c => {
+    toSave.forEach((ts, i) => {
+      ts.trackNames[c.id] = songs[i].tracks[c.id].map(t => ({
+        name: t.name, key: t.key, category: t.category
+      }));
+    });
+  });
+  localStorage.setItem('rehearsalmix_songs', JSON.stringify(toSave));
+}
+
+// ========== GOOGLE DRIVE API ==========
+function loadGoogleAPI() {
+  // Carga la librería de Google
+  const script = document.createElement('script');
+  script.src = 'https://apis.google.com/js/api.js';
+  script.onload = () => {
+    gapi.load('client:auth2', initGoogleClient);
+  };
+  script.onerror = () => {
+    console.log('Google API no disponible - modo local activado');
+  };
+  document.head.appendChild(script);
+}
+
+function initGoogleClient() {
+  if (!CLIENT_ID || CLIENT_ID.includes('TU_CLIENT_ID')) {
+    console.log('Client ID no configurado - modo local');
+    return;
+  }
+  gapi.client.init({
+    clientId: CLIENT_ID,
+    scope: SCOPES,
+    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+  }).then(() => {
+    gapiLoaded = true;
+    const auth = gapi.auth2.getAuthInstance();
+    if (auth.isSignedIn.get()) {
+      driveConnected = true;
+      updateDriveUI();
+      loadFromDrive();
+    }
+  }).catch(err => {
+    console.log('Error inicializando Google Drive:', err);
+  });
+}
+
+function toggleDriveConnection() {
+  if (!gapiLoaded) {
+    showToast('Google API no cargada. Verifica tu conexión.', 'error');
+    return;
+  }
+  const auth = gapi.auth2.getAuthInstance();
+  if (!driveConnected) {
+    auth.signIn().then(() => {
+      driveConnected = true;
+      updateDriveUI();
+      showToast('Conectado a Google Drive', 'success');
+      loadFromDrive();
+    }).catch(err => {
+      showToast('Error al conectar: ' + err.error, 'error');
+    });
+  } else {
+    auth.signOut();
+    driveConnected = false;
+    updateDriveUI();
+    showToast('Desconectado de Google Drive', 'success');
+  }
+}
+
+function updateDriveUI() {
+  const status = document.getElementById('driveStatus');
+  const text = document.getElementById('driveStatusText');
+  if (driveConnected) {
+    status.classList.add('connected');
+    text.textContent = 'Google Drive conectado';
+  } else {
+    status.classList.remove('connected');
+    text.textContent = 'Conectar con Google Drive';
+  }
+}
+
+// ========== SINCRONIZACIÓN CON DRIVE ==========
+async function loadFromDrive() {
+  if (!driveConnected) return;
+  try {
+    // Busca carpeta RehearsalMix
+    const folderRes = await gapi.client.drive.files.list({
+      q: "name='RehearsalMix' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      spaces: 'drive'
+    });
+    if (folderRes.result.files.length === 0) {
+      showToast('No se encontró carpeta RehearsalMix en Drive', 'error');
+      return;
+    }
+    const folderId = folderRes.result.files[0].id;
+
+    // Lista canciones (subcarpetas)
+    const songsRes = await gapi.client.drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      spaces: 'drive'
+    });
+
+    // Procesa cada canción
+    for (let songFolder of songsRes.result.files) {
+      // Busca metadata.json
+      const metaRes = await gapi.client.drive.files.list({
+        q: `'${songFolder.id}' in parents and name='metadata.json' and trashed=false`,
+        spaces: 'drive'
+      });
+      if (metaRes.result.files.length > 0) {
+        const metaFile = await gapi.client.drive.files.get({
+          fileId: metaRes.result.files[0].id,
+          alt: 'media'
+        });
+        const meta = JSON.parse(metaFile.body);
+        // Actualiza o crea canción
+        let existing = songs.find(s => s.id === meta.id);
+        if (!existing) {
+          existing = { ...meta, tracks: {}, charts: meta.charts || [] };
+          CATEGORIES.forEach(c => existing.tracks[c.id] = []);
+          songs.push(existing);
+        }
+      }
+    }
+    renderSongs();
+    showToast('Sincronizado con Google Drive', 'success');
+  } catch (err) {
+    console.error('Error cargando de Drive:', err);
+    showToast('Error al sincronizar con Drive', 'error');
+  }
+}
+
+async function saveToDrive() {
+  if (!driveConnected) return;
+  try {
+    // Crea/encuentra carpeta RehearsalMix
+    let folderRes = await gapi.client.drive.files.list({
+      q: "name='RehearsalMix' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+      spaces: 'drive'
+    });
+    let folderId;
+    if (folderRes.result.files.length === 0) {
+      const createRes = await gapi.client.drive.files.create({
+        resource: { name: 'RehearsalMix', mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id'
+      });
+      folderId = createRes.result.id;
+    } else {
+      folderId = folderRes.result.files[0].id;
+    }
+
+    // Guarda cada canción
+    for (let song of songs) {
+      // Crea carpeta de canción
+      let songFolderRes = await gapi.client.drive.files.list({
+        q: `name='${song.title}' and '${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        spaces: 'drive'
+      });
+      let songFolderId;
+      if (songFolderRes.result.files.length === 0) {
+        const createSong = await gapi.client.drive.files.create({
+          resource: { name: song.title, mimeType: 'application/vnd.google-apps.folder', parents: [folderId] },
+          fields: 'id'
+        });
+        songFolderId = createSong.result.id;
+      } else {
+        songFolderId = songFolderRes.result.files[0].id;
+      }
+
+      // Guarda metadata.json
+      const metadata = {
+        id: song.id, title: song.title, artist: song.artist,
+        originalKey: song.originalKey, bpm: song.bpm, charts: song.charts
+      };
+      const blob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({
+        name: 'metadata.json',
+        parents: [songFolderId]
+      })], { type: 'application/json' }));
+      form.append('file', blob);
+
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: new Headers({ Authorization: 'Bearer ' + gapi.auth.getToken().access_token }),
+        body: form
+      });
+    }
+    showToast('Guardado en Google Drive', 'success');
+  } catch (err) {
+    console.error('Error guardando en Drive:', err);
+    showToast('Error al guardar en Drive', 'error');
+  }
+}
+
+// ========== TABS ==========
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section-container').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('section-' + tab).classList.add('active');
+  if (tab !== 'library' && !currentSongId && songs.length > 0) openSong(songs[0].id);
+  updateFab();
+}
+
+function updateFab() {
+  const fab = document.getElementById('fabBtn');
+  fab.style.display = (activeTab === 'library' || activeTab === 'charts') ? 'flex' : 'none';
+}
+
+// ========== LIBRARY ==========
+function renderSongs() {
+  const grid = document.getElementById('songsGrid');
+  const empty = document.getElementById('libraryEmpty');
+  const query = document.getElementById('searchBox')?.value.toLowerCase() || '';
+  const filtered = songs.filter(s => s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query));
+
+  if (filtered.length === 0) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+  grid.style.display = 'grid'; empty.style.display = 'none';
+
+  grid.innerHTML = filtered.map(song => {
+    const trackCount = Object.values(song.tracks || {}).flat().length;
+    const chartCount = (song.charts || []).length;
+    return `
+      <div class="song-card" onclick="openSong(${song.id})">
+        <div class="song-actions" onclick="event.stopPropagation()">
+          <button class="song-action-btn" onclick="deleteSong(${song.id})">🗑</button>
+        </div>
+        <div class="song-title">${song.title}</div>
+        <div class="song-artist">${song.artist}</div>
+        <div class="song-badges">
+          <span class="badge badge-key">${song.originalKey}</span>
+          <span class="badge badge-bpm">${song.bpm} BPM</span>
+        </div>
+        <div class="song-meta">
+          <div><span>${trackCount}</span> pistas</div>
+          <div><span>${chartCount}</span> cifrados</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterSongs() { renderSongs(); }
+
+function openSong(songId) {
+  currentSongId = songId;
+  const song = songs.find(s => s.id === songId);
+  if (!song) return;
+  document.getElementById('detailTitle').textContent = song.title;
+  document.getElementById('detailOriginalKey').textContent = song.originalKey;
+  document.getElementById('detailBPM').textContent = song.bpm;
+  document.getElementById('chartDetailTitle').textContent = song.title;
+  document.getElementById('chartDetailOriginalKey').textContent = song.originalKey;
+  document.getElementById('chartDetailBPM').textContent = song.bpm;
+  document.getElementById('songDetailRehearsal').classList.add('active');
+  document.getElementById('songDetailCharts').classList.add('active');
+  changeKey(song.originalKey);
+  changeChartKey(song.originalKey);
+  renderTracks();
+  renderCharts();
+}
+
+function backToLibrary() {
+  currentSongId = null;
+  switchTab('library');
+  document.getElementById('songDetailRehearsal').classList.remove('active');
+  document.getElementById('songDetailCharts').classList.remove('active');
+}
+
+function deleteSong(id) {
+  if (!confirm('¿Eliminar esta canción y todo su contenido?')) return;
+  songs = songs.filter(s => s.id !== id);
+  if (currentSongId === id) backToLibrary();
+  saveSongsToStorage();
+  renderSongs();
+  showToast('Canción eliminada', 'success');
+}
+
+// ========== KEYS ==========
+function changeKey(key) {
+  currentKey = key;
+  document.querySelectorAll('#rehearsalKeySelector .key-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.key === key);
+  });
+  document.getElementById('currentKeyDisplay').textContent = key;
+  renderTracks();
+  updateMasterInfo();
+}
+
+function changeChartKey(key) {
+  currentChartKey = key;
+  document.querySelectorAll('#chartKeySelector .key-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.key === key);
+  });
+  renderCharts();
+}
+
+// ========== TRACKS ==========
+function renderTracks() {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  const grid = document.getElementById('tracksGrid');
+  grid.innerHTML = CATEGORIES.map(cat => {
+    const catTracks = (song.tracks[cat.id] || []).filter(t => t.key === currentKey);
+    return `
+      <div class="track-card">
+        <div class="track-card-header">
+          <div class="track-icon">${cat.icon}</div>
+          <div class="track-info"><h4>${cat.name}</h4><p>${cat.desc}</p></div>
+        </div>
+        <div class="track-card-body">
+          <div class="upload-zone" onclick="document.getElementById('file-${cat.id}').click()"
+               ondragover="handleDragOver(event)" ondrop="handleDrop(event,'${cat.id}')" ondragleave="handleDragLeave(event)">
+            <div class="upload-zone-text">Arrastra archivos o <span>haz clic para subir</span></div>
+          </div>
+          <input type="file" class="file-input" id="file-${cat.id}" accept="audio/*" multiple onchange="handleFileSelect(event,'${cat.id}')">
+          <div class="track-list" id="list-${cat.id}">
+            ${catTracks.length === 0
+              ? '<div style="text-align:center;color:#555;padding:12px;font-size:13px;">Sin pistas en ' + currentKey + '</div>'
+              : catTracks.map(t => trackRowHTML(t)).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function trackRowHTML(track) {
+  return `
+    <div class="track-row" id="track-${track.id}">
+      <button class="track-row-play" onclick="toggleTrack(${track.id})"><span id="pi-${track.id}">▶</span></button>
+      <span class="track-row-name">${track.name}</span>
+      <span class="track-row-key">${track.key}</span>
+      <button class="track-row-del" onclick="deleteTrack(${track.id}, '${track.category}')">✕</button>
+    </div>
+    <div class="track-vol">
+      <input type="range" min="0" max="100" value="${Math.round((track.volume || 0.8)*100)}" oninput="updateVolume(${track.id},this.value)">
+      <span class="track-vol-label" id="vl-${track.id}">${Math.round((track.volume || 0.8)*100)}%</span>
+    </div>
+  `;
+}
+
+function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+function handleDrop(e, category) { e.preventDefault(); e.currentTarget.classList.remove('dragover'); processFiles(e.dataTransfer.files, category); }
+function handleFileSelect(e, category) { processFiles(e.target.files, category); e.target.value = ''; }
+
+function processFiles(files, category) {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('audio/')) return;
+    const trackKey = extractKey(file.name) || currentKey;
+    if (!song.tracks[category]) song.tracks[category] = [];
+    song.tracks[category].push({
+      id: Date.now() + Math.random(),
+      name: file.name, key: trackKey, category: category,
+      url: URL.createObjectURL(file), volume: 0.8
+    });
+  });
+  saveSongsToStorage();
+  renderTracks();
+  updateMasterInfo();
+  renderSongs();
+  showToast('Pistas agregadas', 'success');
+}
+
+function extractKey(filename) {
+  const keys = ['C#','D#','F#','G#','A#','C','D','E','F','G','A','B'];
+  const up = filename.toUpperCase();
+  for (let k of keys) {
+    if (up.includes('_'+k+'_') || up.includes('-'+k+'-') || up.includes(' '+k+' ') ||
+        up.endsWith('_'+k) || up.endsWith('-'+k) || up.endsWith(' '+k)) return k;
+  }
+  return null;
+}
+
+function toggleTrack(tid) {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  let track = null;
+  for (let cat of CATEGORIES) { track = (song.tracks[cat.id] || []).find(t => t.id === tid); if (track) break; }
+  if (!track) return;
+  if (!audioElements[tid]) { audioElements[tid] = new Audio(track.url); audioElements[tid].volume = track.volume || 0.8; }
+  const a = audioElements[tid]; const icon = document.getElementById('pi-' + tid); const row = document.getElementById('track-' + tid);
+  if (a.paused) { a.play(); if (icon) icon.textContent = '⏸'; if (row) row.classList.add('playing'); }
+  else { a.pause(); if (icon) icon.textContent = '▶'; if (row) row.classList.remove('playing'); }
+  a.onended = () => { if (icon) icon.textContent = '▶'; if (row) row.classList.remove('playing'); };
+}
+
+function updateVolume(tid, val) {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  for (let cat of CATEGORIES) {
+    const t = (song.tracks[cat.id] || []).find(t => t.id === tid);
+    if (t) { t.volume = val/100; break; }
+  }
+  const el = document.getElementById('vl-' + tid);
+  if (el) el.textContent = val + '%';
+  if (audioElements[tid]) audioElements[tid].volume = val/100;
+}
+
+function deleteTrack(tid, cat) {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  if (audioElements[tid]) { audioElements[tid].pause(); delete audioElements[tid]; }
+  song.tracks[cat] = (song.tracks[cat] || []).filter(t => t.id !== tid);
+  saveSongsToStorage();
+  renderTracks();
+  updateMasterInfo();
+  renderSongs();
+  showToast('Pista eliminada', 'success');
+}
+
+function toggleMasterPlay() {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  const icon = document.getElementById('masterPlayIcon');
+  const text = document.getElementById('masterPlayText');
+  if (isPlaying) {
+    Object.values(audioElements).forEach(a => { a.pause(); a.currentTime = 0; });
+    document.querySelectorAll('.track-row').forEach(r => r.classList.remove('playing'));
+    document.querySelectorAll('.track-row-play span').forEach(s => s.textContent = '▶');
+    isPlaying = false; icon.textContent = '▶'; text.textContent = 'Reproducir todo';
+  } else {
+    let played = false;
+    CATEGORIES.forEach(cat => {
+      (song.tracks[cat.id] || []).filter(t => t.key === currentKey).forEach(t => {
+        if (!audioElements[t.id]) { audioElements[t.id] = new Audio(t.url); audioElements[t.id].volume = t.volume || 0.8; }
+        audioElements[t.id].play();
+        const ic = document.getElementById('pi-' + t.id); const rw = document.getElementById('track-' + t.id);
+        if (ic) ic.textContent = '⏸'; if (rw) rw.classList.add('playing'); played = true;
+      });
+    });
+    if (played) { isPlaying = true; icon.textContent = '⏹'; text.textContent = 'Detener todo'; }
+    else { showToast('No hay pistas en ' + currentKey, 'error'); }
+  }
+}
+
+function updateMasterInfo() {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  let count = 0;
+  CATEGORIES.forEach(cat => { count += (song.tracks[cat.id] || []).filter(t => t.key === currentKey).length; });
+  document.getElementById('activeTracksCount').textContent = count;
+}
+
+// ========== CHARTS ==========
+function renderCharts() {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!song) return;
+  const filtered = (song.charts || []).filter(c => c.key === currentChartKey);
+  const container = document.getElementById('chartsGrid');
+  const empty = document.getElementById('chartsEmptyState');
+  if (filtered.length === 0) { container.style.display = 'none'; empty.style.display = 'block'; return; }
+  container.style.display = 'grid'; empty.style.display = 'none';
+  container.innerHTML = filtered.map(chart => `
+    <div class="chart-card">
+      <div class="chart-header"><h4>${chart.title}</h4><span class="chart-key-tag">${chart.key}</span></div>
+      <div class="chart-body">
+        <div class="chart-content">${formatChart(chart.content)}</div>
+        <div class="chart-actions">
+          <button class="chart-action-btn" onclick="editChart(${chart.id})">✏ Editar</button>
+          <button class="chart-action-btn" onclick="deleteChart(${chart.id})">🗑 Eliminar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function formatChart(content) {
+  return content.replace(/\[([^\]]+)\]/g, '<span class="section-tag">[$1]</span>')
+    .replace(/\b([A-G][#b]?m?(?:maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b]?)?)\b/g, '<span class="chord-tag">$1</span>');
+}
+
+function editChart(cid) {
+  const song = songs.find(s => s.id === currentSongId);
+  const chart = (song.charts || []).find(c => c.id === cid);
+  if (!chart) return;
+  modalMode = 'editChart';
+  window.tempEditChartId = cid;
+  document.getElementById('modalTitle').textContent = 'Editar cifrado';
+  document.getElementById('modalSongTitle').style.display = 'none';
+  document.getElementById('modalSongArtist').style.display = 'none';
+  document.querySelector('.modal-row').style.display = 'none';
+  document.getElementById('modalChartContent').style.display = 'block';
+  document.getElementById('modalChartContent').value = chart.content;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function deleteChart(cid) {
+  const song = songs.find(s => s.id === currentSongId);
+  if (!confirm('¿Eliminar este cifrado?')) return;
+  song.charts = (song.charts || []).filter(c => c.id !== cid);
+  saveSongsToStorage();
+  renderCharts();
+  renderSongs();
+  showToast('Cifrado eliminado', 'success');
+}
+
+// ========== MODAL ==========
+function handleFabClick() {
+  if (activeTab === 'library') openSongModal();
+  else if (activeTab === 'charts') openChartModal();
+}
+
+function openSongModal() {
+  modalMode = 'song';
+  document.getElementById('modalTitle').textContent = 'Nueva canción';
+  document.getElementById('modalSongTitle').style.display = 'block';
+  document.getElementById('modalSongArtist').style.display = 'block';
+  document.querySelector('.modal-row').style.display = 'flex';
+  document.getElementById('modalChartContent').style.display = 'none';
+  document.getElementById('modalSongTitle').value = '';
+  document.getElementById('modalSongArtist').value = '';
+  document.getElementById('modalOriginalKey').value = '';
+  document.getElementById('modalBPM').value = '';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openChartModal() {
+  modalMode = 'chart';
+  document.getElementById('modalTitle').textContent = 'Nuevo cifrado';
+  document.getElementById('modalSongTitle').style.display = 'none';
+  document.getElementById('modalSongArtist').style.display = 'none';
+  document.querySelector('.modal-row').style.display = 'none';
+  document.getElementById('modalChartContent').style.display = 'block';
+  document.getElementById('modalChartContent').value = '';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('active');
+    window.tempEditChartId = null;
+  }
+}
+
+function confirmAdd() {
+  if (modalMode === 'song') {
+    const title = document.getElementById('modalSongTitle').value.trim();
+    const artist = document.getElementById('modalSongArtist').value.trim();
+    const key = document.getElementById('modalOriginalKey').value;
+    const bpm = parseInt(document.getElementById('modalBPM').value) || 120;
+    if (!title) { showToast('Ingresa un título', 'error'); return; }
+    if (!key) { showToast('Selecciona la tonalidad original', 'error'); return; }
+    const newSong = { id: Date.now(), title, artist: artist || 'Desconocido', originalKey: key, bpm, tracks: {}, charts: [] };
+    CATEGORIES.forEach(c => newSong.tracks[c.id] = []);
+    songs.push(newSong);
+    saveSongsToStorage();
+    renderSongs();
+    closeModal();
+    showToast('Canción agregada', 'success');
+  } else if (modalMode === 'chart') {
+    const content = document.getElementById('modalChartContent').value.trim();
+    const song = songs.find(s => s.id === currentSongId);
+    if (!song) return;
+    if (!song.charts) song.charts = [];
+    song.charts.push({ id: Date.now(), title: 'Cifrado ' + currentChartKey, key: currentChartKey, content: content || '[Sin contenido]' });
+    saveSongsToStorage();
+    renderCharts();
+    renderSongs();
+    closeModal();
+    showToast('Cifrado agregado', 'success');
+  } else if (modalMode === 'editChart') {
+    const content = document.getElementById('modalChartContent').value.trim();
+    const song = songs.find(s => s.id === currentSongId);
+    const chart = (song.charts || []).find(c => c.id === window.tempEditChartId);
+    if (chart) { chart.content = content; chart.key = currentChartKey; }
+    saveSongsToStorage();
+    renderCharts();
+    closeModal();
+    showToast('Cifrado actualizado', 'success');
+    window.tempEditChartId = null;
+  }
+}
+
+// ========== TOAST ==========
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ========== START ==========
+init();
+</script>
+</body>
+</html>
