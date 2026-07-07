@@ -147,9 +147,6 @@
   .empty-state p { font-size: 14px; }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #555; border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .pdf-upload-zone { border: 1.5px dashed #2a2a3a; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: #1a1a2e; margin-top: 12px; }
-  .pdf-upload-zone:hover { border-color: #555; background: #222236; }
-  .pdf-upload-zone.dragover { border-color: #e94560; background: rgba(233,69,96,0.05); }
   @media (max-width: 640px) {
     .songs-grid, .tracks-grid, .charts-grid { grid-template-columns: 1fr; }
     .library-header { flex-direction: column; align-items: stretch; }
@@ -229,7 +226,7 @@
         </div>
         <div class="master-bar">
           <button class="master-play-btn" onclick="toggleMasterPlay()" id="masterPlayBtn">
-            <span id="masterPlayIcon">></span> <span id="masterPlayText">Reproducir todo</span>
+            <span id="masterPlayIcon">&gt;</span> <span id="masterPlayText">Reproducir todo</span>
           </button>
           <div class="master-info">
             <div class="master-info-item"><div class="label">tonalidad</div><div class="value" id="currentKeyDisplay">C</div></div>
@@ -297,8 +294,8 @@
 // CONFIGURACION - REEMPLAZA ESTOS VALORES
 // ============================================
 const ADMIN_PASSWORD = '07012026imec';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyV1mWsZRKIPS6DIOmQ8iRyfW4Ydg1BRNkeZhXm15YOfWJicrVftgyPkhfAA4Z39Df8/exec';
-const DRIVE_FOLDER_ID = '1BUQNF6nkjmsdcbd71vIUh3MnskYPUxwT';
+const APPS_SCRIPT_URL = 'TU_APPS_SCRIPT_URL';
+const DRIVE_FOLDER_ID = 'TU_DRIVE_FOLDER_ID';
 
 const ALL_KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const CATEGORIES = [
@@ -382,9 +379,16 @@ function init() {
 
 function renderKeySelectors() {
   const mk = function(id, handler) {
-    document.getElementById(id).innerHTML = ALL_KEYS.map(function(k) {
-      return '<button class="key-btn" data-key="' + k + '" onclick="' + handler + "('" + k + "')" + '">' + k + '</button>';
-    }).join('');
+    const container = document.getElementById(id);
+    container.innerHTML = '';
+    ALL_KEYS.forEach(function(k) {
+      const btn = document.createElement('button');
+      btn.className = 'key-btn';
+      btn.dataset.key = k;
+      btn.textContent = k;
+      btn.addEventListener('click', function() { window[handler](k); });
+      container.appendChild(btn);
+    });
   };
   mk('rehearsalKeySelector', 'changeKey');
   mk('chartKeySelector', 'changeChartKey');
@@ -566,21 +570,37 @@ function updateFab() {
 function renderSongs() {
   const grid = document.getElementById('songsGrid');
   const empty = document.getElementById('libraryEmpty');
-  const query = document.getElementById('searchBox')?.value.toLowerCase() || '';
+  const query = (document.getElementById('searchBox')?.value || '').toLowerCase();
   const filtered = songs.filter(function(s) {
     return s.title.toLowerCase().includes(query) || s.artist.toLowerCase().includes(query);
   });
   if (filtered.length === 0) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
   grid.style.display = 'grid'; empty.style.display = 'none';
-  grid.innerHTML = filtered.map(function(song) {
+  grid.innerHTML = '';
+
+  filtered.forEach(function(song) {
     const trackCount = Object.values(song.tracks || {}).flat().length;
     const chartCount = (song.charts || []).length;
     const pdfCount = (song.pdfs || []).length;
-    return (
-      '<div class="song-card" onclick="openSong(' + song.id + ')">' +
-      (isAdmin ? '<div class="song-actions" onclick="event.stopPropagation()">' +
-        '<button class="song-action-btn" onclick="deleteSong(' + song.id + ')">X</button>' +
-      '</div>' : '') +
+
+    const card = document.createElement('div');
+    card.className = 'song-card';
+    card.addEventListener('click', function() { openSong(song.id); });
+
+    if (isAdmin) {
+      const actions = document.createElement('div');
+      actions.className = 'song-actions';
+      actions.addEventListener('click', function(e) { e.stopPropagation(); });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'song-action-btn';
+      delBtn.textContent = 'X';
+      delBtn.addEventListener('click', function() { deleteSong(song.id); });
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
+    }
+
+    card.innerHTML +=
       '<div class="song-title">' + escapeHtml(song.title) + '</div>' +
       '<div class="song-artist">' + escapeHtml(song.artist) + '</div>' +
       '<div class="song-badges">' +
@@ -591,10 +611,10 @@ function renderSongs() {
         '<div><span>' + trackCount + '</span> pistas</div>' +
         '<div><span>' + chartCount + '</span> cifrados</div>' +
         '<div><span>' + pdfCount + '</span> PDFs</div>' +
-      '</div>' +
-      '</div>'
-    );
-  }).join('');
+      '</div>';
+
+    grid.appendChild(card);
+  });
 }
 
 function escapeHtml(text) {
@@ -668,47 +688,110 @@ function renderTracks() {
   if (!song) return;
   const grid = document.getElementById('tracksGrid');
   const isAdminMode = isAdmin && document.getElementById('mode-admin')?.classList.contains('active');
+  grid.innerHTML = '';
 
-  grid.innerHTML = CATEGORIES.map(function(cat) {
+  CATEGORIES.forEach(function(cat) {
     const catTracks = (song.tracks[cat.id] || []).filter(function(t) { return t.key === currentKey; });
-    return (
-      '<div class="track-card">' +
-        '<div class="track-card-header">' +
-          '<div class="track-icon">' + cat.icon + '</div>' +
-          '<div class="track-info"><h4>' + cat.name + '</h4><p>' + cat.desc + '</p></div>' +
-        '</div>' +
-        '<div class="track-card-body">' +
-          (isAdminMode ?
-          '<div class="upload-zone" onclick="document.getElementById('file-' + cat.id + '').click()"' +
-               ' ondragover="handleDragOver(event)" ondrop="handleDrop(event,'' + cat.id + '')" ondragleave="handleDragLeave(event)">' +
-            '<div class="upload-zone-text">Arrastra archivos de audio o <span>haz clic para subir</span></div>' +
-          '</div>' +
-          '<input type="file" class="file-input" id="file-' + cat.id + '" accept="audio/*" multiple onchange="handleFileSelect(event,'' + cat.id + '')">'
-          : '') +
-          '<div class="track-list" id="list-' + cat.id + '">' +
-            (catTracks.length === 0
-              ? '<div style="text-align:center;color:#555;padding:12px;font-size:13px;">Sin pistas en ' + currentKey + '</div>'
-              : catTracks.map(function(t) { return trackRowHTML(t, isAdminMode); }).join('')) +
-          '</div>' +
-        '</div>' +
-      '</div>'
-    );
-  }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'track-card';
+
+    const header = document.createElement('div');
+    header.className = 'track-card-header';
+    header.innerHTML = '<div class="track-icon">' + cat.icon + '</div><div class="track-info"><h4>' + cat.name + '</h4><p>' + cat.desc + '</p></div>';
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'track-card-body';
+
+    if (isAdminMode) {
+      const uploadZone = document.createElement('div');
+      uploadZone.className = 'upload-zone';
+      uploadZone.innerHTML = '<div class="upload-zone-text">Arrastra archivos de audio o <span>haz clic para subir</span></div>';
+      uploadZone.addEventListener('click', function() { document.getElementById('file-' + cat.id).click(); });
+      uploadZone.addEventListener('dragover', handleDragOver);
+      uploadZone.addEventListener('drop', function(e) { handleDrop(e, cat.id); });
+      uploadZone.addEventListener('dragleave', handleDragLeave);
+      body.appendChild(uploadZone);
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.className = 'file-input';
+      fileInput.id = 'file-' + cat.id;
+      fileInput.accept = 'audio/*';
+      fileInput.multiple = true;
+      fileInput.addEventListener('change', function(e) { handleFileSelect(e, cat.id); });
+      body.appendChild(fileInput);
+    }
+
+    const trackList = document.createElement('div');
+    trackList.className = 'track-list';
+    trackList.id = 'list-' + cat.id;
+
+    if (catTracks.length === 0) {
+      trackList.innerHTML = '<div style="text-align:center;color:#555;padding:12px;font-size:13px;">Sin pistas en ' + currentKey + '</div>';
+    } else {
+      catTracks.forEach(function(t) {
+        trackList.appendChild(createTrackRow(t, isAdminMode));
+      });
+    }
+
+    body.appendChild(trackList);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
 }
 
-function trackRowHTML(track, showDelete) {
-  return (
-    '<div class="track-row" id="track-' + track.id + '">' +
-      '<button class="track-row-play" onclick="toggleTrack(' + track.id + ')"><span id="pi-' + track.id + '">></span></button>' +
-      '<span class="track-row-name">' + escapeHtml(track.name) + '</span>' +
-      '<span class="track-row-key">' + track.key + '</span>' +
-      (showDelete ? '<button class="track-row-del" onclick="deleteTrack(' + track.id + ', '' + track.category + '')">x</button>' : '') +
-    '</div>' +
-    '<div class="track-vol">' +
-      '<input type="range" min="0" max="100" value="' + Math.round((track.volume||0.8)*100) + '" oninput="updateVolume(' + track.id + ',this.value)">' +
-      '<span class="track-vol-label" id="vl-' + track.id + '">' + Math.round((track.volume||0.8)*100) + '%</span>' +
-    '</div>'
-  );
+function createTrackRow(track, showDelete) {
+  const container = document.createElement('div');
+
+  const row = document.createElement('div');
+  row.className = 'track-row';
+  row.id = 'track-' + track.id;
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'track-row-play';
+  playBtn.innerHTML = '<span id="pi-' + track.id + '">&gt;</span>';
+  playBtn.addEventListener('click', function() { toggleTrack(track.id); });
+  row.appendChild(playBtn);
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'track-row-name';
+  nameSpan.textContent = track.name;
+  row.appendChild(nameSpan);
+
+  const keySpan = document.createElement('span');
+  keySpan.className = 'track-row-key';
+  keySpan.textContent = track.key;
+  row.appendChild(keySpan);
+
+  if (showDelete) {
+    const delBtn = document.createElement('button');
+    delBtn.className = 'track-row-del';
+    delBtn.textContent = 'x';
+    delBtn.addEventListener('click', function() { deleteTrack(track.id, track.category); });
+    row.appendChild(delBtn);
+  }
+
+  container.appendChild(row);
+
+  const volDiv = document.createElement('div');
+  volDiv.className = 'track-vol';
+  const volInput = document.createElement('input');
+  volInput.type = 'range';
+  volInput.min = '0';
+  volInput.max = '100';
+  volInput.value = Math.round((track.volume||0.8)*100);
+  volInput.addEventListener('input', function() { updateVolume(track.id, this.value); });
+  const volLabel = document.createElement('span');
+  volLabel.className = 'track-vol-label';
+  volLabel.id = 'vl-' + track.id;
+  volLabel.textContent = Math.round((track.volume||0.8)*100) + '%';
+  volDiv.appendChild(volInput);
+  volDiv.appendChild(volLabel);
+  container.appendChild(volDiv);
+
+  return container;
 }
 
 function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
@@ -723,7 +806,7 @@ async function processFiles(files, category) {
 
   for (let file of Array.from(files)) {
     if (!file.type.startsWith('audio/')) {
-      showToast(''' + file.name + '' no es un archivo de audio', 'error');
+      showToast('"' + file.name + '" no es un archivo de audio', 'error');
       continue;
     }
     const trackKey = extractKey(file.name) || currentKey;
@@ -731,11 +814,11 @@ async function processFiles(files, category) {
 
     if (isDriveConfigured) {
       try {
-        showToast('Subiendo '' + file.name + '' a Drive...', 'success');
+        showToast('Subiendo "' + file.name + '" a Drive...', 'success');
         const result = await uploadFileToDrive(file);
         driveFileId = result.id;
         trackUrl = 'https://drive.google.com/uc?export=download&id=' + driveFileId;
-        showToast(''' + file.name + '' subido a Drive', 'success');
+        showToast('"' + file.name + '" subido a Drive', 'success');
       } catch (err) {
         console.error('Error subiendo a Drive:', err);
         showToast('Error subiendo a Drive, usando local', 'error');
@@ -854,53 +937,80 @@ function renderCharts() {
   const pdfCharts = (song.pdfs || []).filter(function(p) { return p.key === currentChartKey; });
   const container = document.getElementById('chartsGrid');
   const empty = document.getElementById('chartsEmptyState');
-  const allCharts = [...textCharts, ...pdfCharts];
+  const allCharts = textCharts.concat(pdfCharts);
 
   if (allCharts.length === 0) {
     container.style.display = 'none'; empty.style.display = 'block'; return;
   }
   container.style.display = 'grid'; empty.style.display = 'none';
+  container.innerHTML = '';
 
   const isAdminMode = isAdmin && document.getElementById('mode-admin')?.classList.contains('active');
 
-  container.innerHTML = allCharts.map(function(chart) {
+  allCharts.forEach(function(chart) {
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+
+    const header = document.createElement('div');
+    header.className = 'chart-header';
+    const title = document.createElement('h4');
+    title.textContent = chart.type === 'pdf' ? (chart.title || 'Chart PDF') : chart.title;
+    const keyTag = document.createElement('span');
+    keyTag.className = 'chart-key-tag';
+    keyTag.textContent = chart.key;
+    header.appendChild(title);
+    header.appendChild(keyTag);
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'chart-body';
+
     if (chart.type === 'pdf') {
-      return (
-        '<div class="chart-card">' +
-          '<div class="chart-header">' +
-            '<h4>' + escapeHtml(chart.title || 'Chart PDF') + '</h4>' +
-            '<span class="chart-key-tag">' + chart.key + '</span>' +
-          '</div>' +
-          '<div class="chart-body">' +
-            '<iframe class="pdf-viewer" src="' + (chart.viewUrl || chart.url) + '" frameborder="0"></iframe>' +
-            (isAdminMode ?
-            '<div class="chart-actions">' +
-              '<button class="chart-action-btn" onclick="deletePdf(' + chart.id + ')">Eliminar</button>' +
-            '</div>' : '') +
-          '</div>' +
-        '</div>'
-      );
+      const iframe = document.createElement('iframe');
+      iframe.className = 'pdf-viewer';
+      iframe.src = chart.viewUrl || chart.url;
+      iframe.setAttribute('frameborder', '0');
+      body.appendChild(iframe);
     } else {
-      return (
-        '<div class="chart-card">' +
-          '<div class="chart-header"><h4>' + escapeHtml(chart.title) + '</h4><span class="chart-key-tag">' + chart.key + '</span></div>' +
-          '<div class="chart-body">' +
-            '<div class="chart-content">' + formatChart(chart.content) + '</div>' +
-            (isAdminMode ?
-            '<div class="chart-actions">' +
-              '<button class="chart-action-btn" onclick="editChart(' + chart.id + ')">Editar</button>' +
-              '<button class="chart-action-btn" onclick="deleteChart(' + chart.id + ')">Eliminar</button>' +
-            '</div>' : '') +
-          '</div>' +
-        '</div>'
-      );
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'chart-content';
+      contentDiv.innerHTML = formatChart(chart.content);
+      body.appendChild(contentDiv);
     }
-  }).join('');
+
+    if (isAdminMode) {
+      const actions = document.createElement('div');
+      actions.className = 'chart-actions';
+
+      if (chart.type === 'pdf') {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'chart-action-btn';
+        delBtn.textContent = 'Eliminar';
+        delBtn.addEventListener('click', function() { deletePdf(chart.id); });
+        actions.appendChild(delBtn);
+      } else {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'chart-action-btn';
+        editBtn.textContent = 'Editar';
+        editBtn.addEventListener('click', function() { editChart(chart.id); });
+        actions.appendChild(editBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'chart-action-btn';
+        delBtn.textContent = 'Eliminar';
+        delBtn.addEventListener('click', function() { deleteChart(chart.id); });
+        actions.appendChild(delBtn);
+      }
+      body.appendChild(actions);
+    }
+
+    card.appendChild(body);
+    container.appendChild(card);
+  });
 }
 
 function formatChart(content) {
-  let html = content
-    .replace(/\[([^\]]+)\]/g, '<span class="section-tag">[$1]</span>')
+  let html = content.replace(/\[([^\]]+)\]/g, '<span class="section-tag">[$1]</span>')
     .replace(/\b([A-G][#b]?m?(?:maj|min|dim|aug|sus|add)?\d*(?:\/[A-G][#b]?)?)\b/g, '<span class="chord-tag">$1</span>');
   return html;
 }
@@ -950,7 +1060,7 @@ async function processPdfFiles(files) {
 
   for (let file of Array.from(files)) {
     if (file.type !== 'application/pdf') {
-      showToast(''' + file.name + '' no es un PDF', 'error');
+      showToast('"' + file.name + '" no es un PDF', 'error');
       continue;
     }
     let pdfUrl, viewUrl, driveFileId = null;
@@ -1015,13 +1125,10 @@ function openSongModal() {
 }
 
 function openChartModal() {
-  // Show options: text chart or PDF upload
   const choice = confirm('Haz clic en Aceptar para subir un PDF, Cancelar para crear un cifrado de texto');
   if (choice) {
-    // PDF upload
     openPdfUpload();
   } else {
-    // Text chart
     modalMode = 'chart';
     document.getElementById('modalTitle').textContent = 'Nuevo cifrado';
     document.getElementById('modalSongTitle').style.display = 'none';
@@ -1034,7 +1141,6 @@ function openChartModal() {
 }
 
 function openPdfUpload() {
-  // Create a temporary file input for PDF
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.pdf';
